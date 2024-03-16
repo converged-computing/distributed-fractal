@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package convergedcomputing.org.grpc.v1;
+option go_package = "github.com/converged-computing/distributed-fractal/pkg/api/v1";
+
+/*message Request {
+  string action = 1;
+}
+
+message Response {
+  string data = 1;
+}
+
+message WorkRequest {
+  float xmin = 1;
+  float ymin = 2;
+  float xmax = 3;
+  float ymax = 4;
+  int32 ix = 5;
+  int32 iy = 6;
+  int32 iters = 7;
+  int32 width = 8;
+}
+
+
+service NodeService {
+  rpc ReportStatus(Request) returns (Response){};
+  rpc AssignTask(Request) returns (stream Response){};
+}
+*/
+
+message Request {
+  string action = 1;
+}
+
+message Response {
+  string data = 1;
+}
+
+message WorkResponse {
+  repeated double norm = 1;
+  repeated int32 it = 2;
+  int32 iy = 3;
+  int32 iters = 4;
+}
+
+
+message WorkRequest {
+  double xmin = 1;
+  double ymin = 2;
+  double xmax = 3;
+  double ymax = 4;
+  int32 iy = 5;
+  int32 iters = 6;
+  int32 width = 7;
+}
+
+service NodeService {
+  rpc ReportStatus(Request) returns (Response){};       // Simple RPC
+  rpc ReportResult(WorkResponse) returns (Response){};       // Simple RPC
+
+  // We are streaming the work request to the workers
+  rpc AssignTask(Request) returns (stream WorkRequest){};  // Server-Side RPC
+}
