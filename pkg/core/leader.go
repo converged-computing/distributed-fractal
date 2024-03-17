@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/converged-computing/distributed-fractal/pkg/algorithm"
 	pb "github.com/converged-computing/distributed-fractal/pkg/api/v1"
 	"github.com/converged-computing/distributed-fractal/pkg/colors"
+	"github.com/converged-computing/distributed-fractal/pkg/metrics"
 	"google.golang.org/grpc"
 )
 
@@ -42,6 +44,8 @@ type Leader struct {
 	outfile      string
 	image        *image.RGBA
 	forceExit    bool
+	quiet        bool
+	metrics      bool
 }
 
 // Port returns the port of the leader
@@ -83,16 +87,26 @@ func (n *Leader) Init() (err error) {
 	// Keep a ticker for the user to watch...
 	ticker := time.NewTicker(time.Millisecond * 100)
 	ticker.Stop()
+	var start time.Time
 
 	// require an api ping (or not, headless)
+	if n.quiet {
+		gin.SetMode(gin.ReleaseMode)
+		gin.DefaultWriter = io.Discard
+	}
 	n.api = gin.Default()
 	n.api.POST("/start", func(c *gin.Context) {
 
-		// Start the ticker when image is going
-		ticker.Reset(time.Second * 5)
+		// Start the ticker and timer when image is going
+		if !n.quiet {
+			ticker.Reset(time.Second * 5)
+		}
+		start = time.Now()
 
 		if len(palette) > 0 {
-			fmt.Print("Rendering image...")
+			if !n.quiet {
+				fmt.Print("Rendering image...")
+			}
 			n.RenderDistributed(palette, done)
 		}
 		time.Sleep(time.Second)
@@ -114,7 +128,9 @@ func (n *Leader) Init() (err error) {
 
 			// Show ticker!
 			case <-ticker.C:
-				fmt.Print(".")
+				if !n.quiet {
+					fmt.Print(".")
+				}
 
 			// We have a result
 			case result := <-n.nodeSvr.ResultChannel:
@@ -139,7 +155,15 @@ func (n *Leader) Init() (err error) {
 				// Bad proxy for "this is the last result"
 				if counter == n.height-1 {
 					ticker.Stop()
+					totalTime := time.Since(start)
 					output, err := os.Create(n.outfile)
+					if n.metrics {
+						fmt.Printf("METRICS LEADER time: %v\n", totalTime)
+						metrics.ReportMetrics("METRICS LEADER")
+
+						// Request subset of workers to output metrics
+						n.nodeSvr.MetricsRequestChannel <- true
+					}
 					if err != nil {
 						fmt.Printf("Warning: error creating image file: %s\n", err)
 					}
@@ -225,7 +249,7 @@ func GetLeader(
 	iters int,
 	palette string,
 	outfile string,
-	forceExit bool,
+	forceExit, quiet, metrics bool,
 ) (*Leader, error) {
 
 	// Validate the host - must have a port
@@ -253,6 +277,8 @@ func GetLeader(
 			palette:      palette,
 			outfile:      outfile,
 			forceExit:    forceExit,
+			quiet:        quiet,
+			metrics:      metrics,
 		}
 
 		// Ensure color palette is okay
