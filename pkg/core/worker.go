@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/converged-computing/distributed-fractal/pkg/algorithm"
 	pb "github.com/converged-computing/distributed-fractal/pkg/api/v1"
@@ -14,6 +15,7 @@ type WorkerNode struct {
 	conn       *grpc.ClientConn
 	client     pb.NodeServiceClient
 	leaderHost string
+	retries    int
 }
 
 func (n *WorkerNode) Init() (err error) {
@@ -26,12 +28,32 @@ func (n *WorkerNode) Init() (err error) {
 	return nil
 }
 
+// Connect to the stream with some backoff
+func (n *WorkerNode) ConnectStream() (pb.NodeService_AssignTaskClient, error) {
+
+	// Retry 5 times
+	retry := n.retries
+	sleeptime := 2
+	for {
+		// assign task - done with retry to allow worker starting after
+		stream, err := n.client.AssignTask(context.Background(), &pb.Request{Action: "Started"})
+
+		// If we are successful OR we've run out of retries, return
+		if err == nil || retry <= 0 {
+			return stream, nil
+		}
+		fmt.Printf("Issue connecting to %s, will retry in %d seconds.\n", n.leaderHost, sleeptime)
+		retry -= 1
+		time.Sleep(time.Duration(sleeptime) * time.Second)
+		sleeptime *= 2
+	}
+}
+
 func (n *WorkerNode) Start() error {
 
 	fmt.Println("worker node started")
 
-	// assign task -
-	stream, err := n.client.AssignTask(context.Background(), &pb.Request{Action: "Started"})
+	stream, err := n.ConnectStream()
 	if err != nil {
 		return err
 	}
@@ -74,10 +96,12 @@ func (n *WorkerNode) Start() error {
 
 var workerNode *WorkerNode
 
-func GetWorkerNode(host string) *WorkerNode {
-
+func GetWorkerNode(host string, retries int) *WorkerNode {
+	if retries == 0 {
+		retries = 10
+	}
 	if workerNode == nil {
-		workerNode = &WorkerNode{leaderHost: host}
+		workerNode = &WorkerNode{leaderHost: host, retries: retries}
 		if err := workerNode.Init(); err != nil {
 			panic(err)
 		}
