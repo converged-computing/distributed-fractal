@@ -3,10 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/converged-computing/distributed-fractal/pkg/algorithm"
 	pb "github.com/converged-computing/distributed-fractal/pkg/api/v1"
+	"github.com/converged-computing/distributed-fractal/pkg/metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -16,10 +18,19 @@ type WorkerNode struct {
 	client     pb.NodeServiceClient
 	leaderHost string
 	retries    int
+	quiet      bool
+	metrics    bool
+	counts     map[string]int32
+
+	// We ask the worker to report metrics close to the end
+	// There is maybe a better way to do this
+	metricsReported bool
 }
 
 func (n *WorkerNode) Init() (err error) {
-	fmt.Println(n.leaderHost)
+	if !n.quiet {
+		fmt.Println(n.leaderHost)
+	}
 	n.conn, err = grpc.Dial(n.leaderHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -49,9 +60,23 @@ func (n *WorkerNode) ConnectStream() (pb.NodeService_AssignTaskClient, error) {
 	}
 }
 
+// recordMetrics takes a count of calculations, etc.
+func (n *WorkerNode) recordMetrics() {
+	if !n.metrics {
+		return
+	}
+	_, ok := n.counts["tasks"]
+	if !ok {
+		n.counts["tasks"] = 0
+	}
+	n.counts["tasks"] += 1
+}
+
 func (n *WorkerNode) Start() error {
 
-	fmt.Println("worker node started")
+	if !n.quiet {
+		fmt.Println("worker node started")
+	}
 
 	stream, err := n.ConnectStream()
 	if err != nil {
@@ -65,7 +90,11 @@ func (n *WorkerNode) Start() error {
 			return err
 		}
 
-		fmt.Printf("Received work: %s\n", req)
+		if !n.quiet {
+			fmt.Printf("Received work: %s\n", req)
+		}
+		n.recordMetrics()
+
 		// Do calculations across the width, save vector of norms and it values
 		norms := make([]float64, req.Width)
 		its := make([]int32, req.Width)
@@ -87,21 +116,55 @@ func (n *WorkerNode) Start() error {
 			Iy:    req.Iy,
 			Iters: req.Iters,
 		})
-
 		if err != nil {
 			return err
+		}
+
+		// If we want metrics, check if the request is in (meaning we are done)
+		if n.metrics && !n.metricsReported {
+			n.reportMetrics()
 		}
 	}
 }
 
+// Report metrics for the worker
+// This is currently a bit of a hack, done before the end
+func (n *WorkerNode) reportMetrics() {
+
+	response, err := n.client.RequestMetrics(context.Background(), &pb.Request{})
+	if err != nil || response.Data != "yes" {
+		return
+	}
+
+	// Add the worker hostname to the prefix
+	prefix := "WORKER"
+	hostname, err := os.Hostname()
+	if err == nil {
+		prefix = fmt.Sprintf("WORKER %s", hostname)
+	}
+	for key, value := range n.counts {
+		fmt.Printf("METRICS WORKER %s %s: %d\n", prefix, key, value)
+	}
+
+	// If we report metrics, do based on hostname
+	metrics.ReportMetrics(prefix)
+	n.metricsReported = true
+}
+
 var workerNode *WorkerNode
 
-func GetWorkerNode(host string, retries int) *WorkerNode {
+func GetWorkerNode(host string, retries int, quiet, metrics bool) *WorkerNode {
 	if retries == 0 {
 		retries = 10
 	}
 	if workerNode == nil {
-		workerNode = &WorkerNode{leaderHost: host, retries: retries}
+		workerNode = &WorkerNode{
+			leaderHost: host,
+			retries:    retries,
+			quiet:      quiet,
+			metrics:    metrics,
+			counts:     map[string]int32{},
+		}
 		if err := workerNode.Init(); err != nil {
 			panic(err)
 		}

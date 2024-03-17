@@ -24,6 +24,8 @@ const _ = grpc.SupportPackageIsVersion7
 type NodeServiceClient interface {
 	ReportStatus(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	ReportResult(ctx context.Context, in *WorkResponse, opts ...grpc.CallOption) (*Response, error)
+	// Functions to request the worker node to print metrics
+	RequestMetrics(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	// We are streaming the work request to the workers
 	AssignTask(ctx context.Context, in *Request, opts ...grpc.CallOption) (NodeService_AssignTaskClient, error)
 }
@@ -48,6 +50,15 @@ func (c *nodeServiceClient) ReportStatus(ctx context.Context, in *Request, opts 
 func (c *nodeServiceClient) ReportResult(ctx context.Context, in *WorkResponse, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
 	err := c.cc.Invoke(ctx, "/convergedcomputing.org.grpc.v1.NodeService/ReportResult", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) RequestMetrics(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/convergedcomputing.org.grpc.v1.NodeService/RequestMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +103,8 @@ func (x *nodeServiceAssignTaskClient) Recv() (*WorkRequest, error) {
 type NodeServiceServer interface {
 	ReportStatus(context.Context, *Request) (*Response, error)
 	ReportResult(context.Context, *WorkResponse) (*Response, error)
+	// Functions to request the worker node to print metrics
+	RequestMetrics(context.Context, *Request) (*Response, error)
 	// We are streaming the work request to the workers
 	AssignTask(*Request, NodeService_AssignTaskServer) error
 	mustEmbedUnimplementedNodeServiceServer()
@@ -106,6 +119,9 @@ func (UnimplementedNodeServiceServer) ReportStatus(context.Context, *Request) (*
 }
 func (UnimplementedNodeServiceServer) ReportResult(context.Context, *WorkResponse) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReportResult not implemented")
+}
+func (UnimplementedNodeServiceServer) RequestMetrics(context.Context, *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestMetrics not implemented")
 }
 func (UnimplementedNodeServiceServer) AssignTask(*Request, NodeService_AssignTaskServer) error {
 	return status.Errorf(codes.Unimplemented, "method AssignTask not implemented")
@@ -159,6 +175,24 @@ func _NodeService_ReportResult_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeService_RequestMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).RequestMetrics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/convergedcomputing.org.grpc.v1.NodeService/RequestMetrics",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).RequestMetrics(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NodeService_AssignTask_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(Request)
 	if err := stream.RecvMsg(m); err != nil {
@@ -194,6 +228,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportResult",
 			Handler:    _NodeService_ReportResult_Handler,
+		},
+		{
+			MethodName: "RequestMetrics",
+			Handler:    _NodeService_RequestMetrics_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -30,11 +30,11 @@ build-ppc: $(LOCALBIN)
 
 .PHONY: worker
 worker: build
-	$(LOCALBIN)/fractal worker
+	$(LOCALBIN)/fractal worker --metrics --quiet
 
 .PHONY: leader
 leader: build
-	$(LOCALBIN)/fractal leader
+	$(LOCALBIN)/fractal leader --metrics --quiet
 
 .PHONY: docker
 docker:

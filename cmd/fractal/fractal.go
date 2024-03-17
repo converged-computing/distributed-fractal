@@ -33,6 +33,8 @@ func main() {
 
 	// Shared values
 	host := parser.String("", "host", &argparse.Options{Default: "localhost:50051", Help: "Leader address (host:port)"})
+	quiet := parser.Flag("q", "quiet", &argparse.Options{Help: "Suppress additional output"})
+	metrics := parser.Flag("m", "metrics", &argparse.Options{Help: "Output metrics"})
 
 	// Leader arguments (for image generation)
 	colorStep := leaderCmd.Int("", "step", &argparse.Options{Default: 6000, Help: "Color smooth step (greater than iteration count, defaults to 6000)"})
@@ -50,7 +52,9 @@ func main() {
 	// Worker arguments
 	retries := leaderCmd.Int("", "retries", &argparse.Options{Default: 10, Help: "Number of retries to connect (*2 seconds each time)"})
 
-	fmt.Println(*host)
+	if !*quiet {
+		fmt.Println(*host)
+	}
 
 	// Now parse the arguments
 	err := parser.Parse(os.Args)
@@ -62,7 +66,7 @@ func main() {
 
 	// TODO add error handling here
 	if workerCmd.Happened() {
-		worker := core.GetWorkerNode(*host, *retries)
+		worker := core.GetWorkerNode(*host, *retries, *quiet, *metrics)
 		err := worker.Start()
 		if err != nil {
 			log.Fatalf("Issue with starting worker: %s", err)
@@ -73,7 +77,7 @@ func main() {
 			*host, *colorStep, *width, *height,
 			*xPos, *yPos, *escapeRadius, *smoothness,
 			*iters, *palette, *outfile,
-			*forceExit,
+			*forceExit, *quiet, *metrics,
 		)
 		if err != nil {
 			log.Fatalf("Issue with getting leader: %s", err)
