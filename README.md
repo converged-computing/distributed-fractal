@@ -64,7 +64,10 @@ METRICS LEADER /sched/latencies:seconds: 0.000000
 METRICS LEADER /sync/mutex/wait/total:seconds: 0.000440
 ```
 
-And similar is shown for the worker, but also with the hostname (assuming multiple workers streaming to the same terminal.
+I haven't found a good way to ping the worker that everything is done (to output metrics) but probably there is a good way -
+I thought maybe the total tasks could at least be sent over to the node, but I'm not sure where I'd keep them (there is no state).
+I'm thinking maybe they could be streamed over and then retrieved before exit.
+
 Note that you can read about the metrics [here](https://go.dev/src/runtime/metrics/description.go) - some are indeed cumulative!
 Note that this example shows running in non quiet mode, and without metrics. The default in the Makefile uses quiet mode
 and metrics. Run the leader:
