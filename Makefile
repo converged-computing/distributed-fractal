@@ -15,9 +15,18 @@ protoc: $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
 	GOBIN=$(LOCALBIN) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
+.PHONY: build-all
+build-all: build build-arm build-ppc
+
 .PHONY: build
 build: $(LOCALBIN)
 	GO111MODULE="on" go build -o $(LOCALBIN)/fractal ./cmd/fractal/fractal.go
+
+build-arm: $(LOCALBIN)
+	GO111MODULE="on" GOARCH=arm64 go build -o $(LOCALBIN)/fractal-arm ./cmd/fractal/fractal.go
+
+build-ppc: $(LOCALBIN)
+	GO111MODULE="on" GOARCH=ppc64le go build -o $(LOCALBIN)/fractal-ppc ./cmd/fractal/fractal.go
 
 .PHONY: worker
 worker: build

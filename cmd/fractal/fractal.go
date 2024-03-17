@@ -45,6 +45,10 @@ func main() {
 	iters := leaderCmd.Int("", "iters", &argparse.Options{Default: 800, Help: "Iteration count"})
 	palette := leaderCmd.String("", "palette", &argparse.Options{Default: "Hippi", Help: "Color palette, Hippi | Plan9 | AfternoonBlue | SummerBeach | Biochimist | Fiesta"})
 	outfile := leaderCmd.String("", "outfile", &argparse.Options{Default: "mandelbrot.png", Help: "Output png file"})
+	forceExit := leaderCmd.Flag("", "force-exit", &argparse.Options{Help: "Force exit server on render completion"})
+
+	// Worker arguments
+	retries := leaderCmd.Int("", "retries", &argparse.Options{Default: 10, Help: "Number of retries to connect (*2 seconds each time)"})
 
 	fmt.Println(*host)
 
@@ -58,14 +62,19 @@ func main() {
 
 	// TODO add error handling here
 	if workerCmd.Happened() {
-		worker := core.GetWorkerNode(*host)
+		worker := core.GetWorkerNode(*host, *retries)
 		err := worker.Start()
 		if err != nil {
 			log.Fatalf("Issue with starting worker: %s", err)
 		}
 
 	} else if leaderCmd.Happened() {
-		leader, err := core.GetLeader(*host, *colorStep, *width, *height, *xPos, *yPos, *escapeRadius, *smoothness, *iters, *palette, *outfile)
+		leader, err := core.GetLeader(
+			*host, *colorStep, *width, *height,
+			*xPos, *yPos, *escapeRadius, *smoothness,
+			*iters, *palette, *outfile,
+			*forceExit,
+		)
 		if err != nil {
 			log.Fatalf("Issue with getting leader: %s", err)
 		}

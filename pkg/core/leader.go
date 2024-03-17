@@ -21,7 +21,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// MasterNode is the node instance
+// Leader node instance type
 type Leader struct {
 	api     *gin.Engine
 	ln      net.Listener
@@ -41,6 +41,7 @@ type Leader struct {
 	palette      string
 	outfile      string
 	image        *image.RGBA
+	forceExit    bool
 }
 
 // Port returns the port of the leader
@@ -83,7 +84,7 @@ func (n *Leader) Init() (err error) {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	ticker.Stop()
 
-	// api
+	// require an api ping (or not, headless)
 	n.api = gin.Default()
 	n.api.POST("/start", func(c *gin.Context) {
 
@@ -105,8 +106,17 @@ func (n *Leader) Init() (err error) {
 	go func() {
 		for {
 			select {
+
+			// Done and exit from function
+			case <-done:
+				fmt.Println("Work is done.")
+				return
+
+			// Show ticker!
 			case <-ticker.C:
 				fmt.Print(".")
+
+			// We have a result
 			case result := <-n.nodeSvr.ResultChannel:
 				counter += 1
 				for ix, it := range result.ResultIt {
@@ -125,17 +135,18 @@ func (n *Leader) Init() (err error) {
 						n.image.Set(ix, result.IndexY, newColor)
 
 					}
-
-					// Bad proxy for "this is the last result"
-					if counter == n.height-1 {
-						ticker.Stop()
-						output, err := os.Create(n.outfile)
-						if err != nil {
-							fmt.Printf("Warning: error creating image file: %s\n", err)
-						}
-						png.Encode(output, n.image)
-						fmt.Printf("\n\nMandelbrot set rendered into `%s`\n", n.outfile)
-						done <- struct{}{}
+				}
+				// Bad proxy for "this is the last result"
+				if counter == n.height-1 {
+					ticker.Stop()
+					output, err := os.Create(n.outfile)
+					if err != nil {
+						fmt.Printf("Warning: error creating image file: %s\n", err)
+					}
+					png.Encode(output, n.image)
+					fmt.Printf("\n\nMandelbrot set rendered into `%s`\n", n.outfile)
+					if n.forceExit {
+						panic("Image generation complete, force exited.")
 					}
 				}
 			}
@@ -214,6 +225,7 @@ func GetLeader(
 	iters int,
 	palette string,
 	outfile string,
+	forceExit bool,
 ) (*Leader, error) {
 
 	// Validate the host - must have a port
@@ -240,6 +252,7 @@ func GetLeader(
 			iters:        iters,
 			palette:      palette,
 			outfile:      outfile,
+			forceExit:    forceExit,
 		}
 
 		// Ensure color palette is okay

@@ -61,11 +61,30 @@ curl -X POST http://localhost:9092/start
 ```
 
 And then you get the beautiful image after the workers finish! They are designed to process one row (Y) of the height at a time (across X).
-I tried it first by pixel and it was horrificly slow, heh.
+I tried it first by pixel and it was horrificly slow, heh. To use in a headless environment and force exit:
 
-## TODO
+```bash
+fractal leader --force-exit
+fractal leader --force-exit || true
+```
 
- - vary parameters (via start)?
+I'm sure there are better ways to do that, I'm just too tired to figure it out fully now.
+
+## Images
+
+Here are some to generate:
+
+```bash
+mkdir -p ./img
+./bin/fractal leader --palette "Hippi" --xpos -0.0091275 --ypos 0.7899912 --escape-radius .01401245 --outfile "img/mandelbrot.png"
+./bin/fractal leader --palette "Plan9" --xpos -0.0091275 --ypos 0.7899912 --escape-radius .01401245 --outfile "img/test2.png"
+./bin/fractal leader --palette "Vivid" --xpos -0.00991275 --ypos 0.7899912 --escape-radius .02401245 --outfile "img/test3.png" --iters 800 --step 600 --smoothness 10 --width 1920 --height 1080
+./bin/fractal leader --palette "Hippi" --xpos -0.00275 --ypos 1.012 --escape-radius .089999 --outfile "img/test4.png" --iters 800 --step 600 --smoothness 10 --width 1920 --height 1080
+./bin/fractal leader --palette "Hippi" --xpos -0.00275 --ypos 0.78912 --escape-radius .1256789 --outfile "img/test5.png" --iters 800 --step 6000 --smoothness 10 --width 1920 --height 1080
+./bin/fractal leader --palette "AfternoonBlue" --xpos -0.0091275 --ypos 0.7899912 --escape-radius .01401245 --outfile "img/test6.png"
+./bin/fractal leader --palette "SummerBeach" --xpos -0.0091275 --ypos 0.7899912 --escape-radius .01401245 --outfile "img/test7.png"
+./bin/fractal leader --palette "Biochemist" --xpos -0.0091275 --ypos 0.7899912 --escape-radius .01401245 --outfile "img/test8.png" --smoothness 10
+```
 
 ## Thank You
 
