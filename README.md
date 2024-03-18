@@ -9,7 +9,7 @@ So here we have, distributed fractal! This is so much cooler (and less annoying)
 
 ## Usage
 
-The default commands in the [Makefile](Makefile) for `make leader` and `make server` generate metrics, primarily for the leader.
+The default commands in the [Makefile](Makefile) for `make leader` and `make worker` generate metrics, primarily for the leader.
 This is what the output looks like for the leader after a run is finished:
 
 ```bash
