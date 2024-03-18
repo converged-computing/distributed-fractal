@@ -19,12 +19,7 @@ type WorkerNode struct {
 	leaderHost string
 	retries    int
 	quiet      bool
-	metrics    bool
 	counts     map[string]int32
-
-	// We ask the worker to report metrics close to the end
-	// There is maybe a better way to do this
-	metricsReported bool
 }
 
 func (n *WorkerNode) Init() (err error) {
@@ -62,9 +57,6 @@ func (n *WorkerNode) ConnectStream() (pb.NodeService_AssignTaskClient, error) {
 
 // recordMetrics takes a count of calculations, etc.
 func (n *WorkerNode) recordMetrics() {
-	if !n.metrics {
-		return
-	}
 	_, ok := n.counts["tasks"]
 	if !ok {
 		n.counts["tasks"] = 0
@@ -119,23 +111,14 @@ func (n *WorkerNode) Start() error {
 		if err != nil {
 			return err
 		}
-
-		// If we want metrics, check if the request is in (meaning we are done)
-		if n.metrics && !n.metricsReported {
-			n.reportMetrics()
-		}
 	}
 }
 
 // Report metrics for the worker
-// This is currently a bit of a hack, done before the end
+// This is currently not used.
 func (n *WorkerNode) reportMetrics() {
 
-	response, err := n.client.RequestMetrics(context.Background(), &pb.Request{})
-	if err != nil || response.Data != "yes" {
-		return
-	}
-
+	// TODO some trigger here to know they are requested
 	// Add the worker hostname to the prefix
 	prefix := "WORKER"
 	hostname, err := os.Hostname()
@@ -148,12 +131,11 @@ func (n *WorkerNode) reportMetrics() {
 
 	// If we report metrics, do based on hostname
 	metrics.ReportMetrics(prefix)
-	n.metricsReported = true
 }
 
 var workerNode *WorkerNode
 
-func GetWorkerNode(host string, retries int, quiet, metrics bool) *WorkerNode {
+func GetWorkerNode(host string, retries int, quiet bool) *WorkerNode {
 	if retries == 0 {
 		retries = 10
 	}
@@ -162,7 +144,6 @@ func GetWorkerNode(host string, retries int, quiet, metrics bool) *WorkerNode {
 			leaderHost: host,
 			retries:    retries,
 			quiet:      quiet,
-			metrics:    metrics,
 			counts:     map[string]int32{},
 		}
 		if err := workerNode.Init(); err != nil {

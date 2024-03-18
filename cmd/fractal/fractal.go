@@ -34,7 +34,7 @@ func main() {
 	// Shared values
 	host := parser.String("", "host", &argparse.Options{Default: "localhost:50051", Help: "Leader address (host:port)"})
 	quiet := parser.Flag("q", "quiet", &argparse.Options{Help: "Suppress additional output"})
-	metrics := parser.Flag("m", "metrics", &argparse.Options{Help: "Output metrics"})
+	metrics := leaderCmd.Flag("m", "metrics", &argparse.Options{Help: "Output metrics"})
 
 	// Leader arguments (for image generation)
 	colorStep := leaderCmd.Int("", "step", &argparse.Options{Default: 6000, Help: "Color smooth step (greater than iteration count, defaults to 6000)"})
@@ -66,7 +66,7 @@ func main() {
 
 	// TODO add error handling here
 	if workerCmd.Happened() {
-		worker := core.GetWorkerNode(*host, *retries, *quiet, *metrics)
+		worker := core.GetWorkerNode(*host, *retries, *quiet)
 		err := worker.Start()
 		if err != nil {
 			log.Fatalf("Issue with starting worker: %s", err)

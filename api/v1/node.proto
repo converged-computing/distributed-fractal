@@ -59,9 +59,6 @@ service NodeService {
   rpc ReportStatus(Request) returns (Response){};
   rpc ReportResult(WorkResponse) returns (Response){};
 
-  // Functions to request the worker node to print metrics
-  rpc RequestMetrics(Request) returns (Response){};
-
   // We are streaming the work request to the workers
   rpc AssignTask(Request) returns (stream WorkRequest){};
 }
