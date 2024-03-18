@@ -8,15 +8,10 @@ import (
 	"context"
 )
 
-var (
-	metricsDesired = false
-)
-
 type NodeServiceGrpcServer struct {
 	pb.UnimplementedNodeServiceServer
-	MetricsRequestChannel chan bool
-	ResultChannel         chan IterationResult
-	WorkChannel           chan MandelIteration
+	ResultChannel chan IterationResult
+	WorkChannel   chan MandelIteration
 }
 
 // ReportStatus reports a worker status
@@ -24,25 +19,6 @@ type NodeServiceGrpcServer struct {
 func (n NodeServiceGrpcServer) ReportStatus(ctx context.Context, request *pb.Request) (*pb.Response, error) {
 	fmt.Printf("received worker status: %s\n", request.Action)
 	return &pb.Response{Data: "ok"}, nil
-}
-
-// Request metrics checks the metrics request channel to see if metrics are desired
-func (n NodeServiceGrpcServer) RequestMetrics(ctx context.Context, result *pb.Request) (*pb.Response, error) {
-
-	// If we've cached it (and another worker received it)
-	if metricsDesired {
-		return &pb.Response{Data: "yes"}, nil
-	}
-	select {
-	case yes, ok := <-n.MetricsRequestChannel:
-		if ok && yes {
-			metricsDesired = true
-			return &pb.Response{Data: "yes"}, nil
-		}
-	default:
-		break
-	}
-	return &pb.Response{Data: "no"}, nil
 }
 
 // Report a result to the leader
@@ -92,9 +68,8 @@ var server *NodeServiceGrpcServer
 func GetNodeServiceGrpcServer() *NodeServiceGrpcServer {
 	if server == nil {
 		server = &NodeServiceGrpcServer{
-			WorkChannel:           make(chan MandelIteration),
-			ResultChannel:         make(chan IterationResult),
-			MetricsRequestChannel: make(chan bool),
+			WorkChannel:   make(chan MandelIteration),
+			ResultChannel: make(chan IterationResult),
 		}
 	}
 	return server

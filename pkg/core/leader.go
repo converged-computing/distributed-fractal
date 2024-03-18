@@ -157,17 +157,14 @@ func (n *Leader) Init() (err error) {
 					ticker.Stop()
 					totalTime := time.Since(start)
 					output, err := os.Create(n.outfile)
+					png.Encode(output, n.image)
 					if n.metrics {
 						fmt.Printf("METRICS LEADER time: %v\n", totalTime)
 						metrics.ReportMetrics("METRICS LEADER")
-
-						// Request subset of workers to output metrics
-						n.nodeSvr.MetricsRequestChannel <- true
 					}
 					if err != nil {
 						fmt.Printf("Warning: error creating image file: %s\n", err)
 					}
-					png.Encode(output, n.image)
 					fmt.Printf("\n\nMandelbrot set rendered into `%s`\n", n.outfile)
 					if n.forceExit {
 						panic("Image generation complete, force exited.")

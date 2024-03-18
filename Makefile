@@ -30,7 +30,7 @@ build-ppc: $(LOCALBIN)
 
 .PHONY: worker
 worker: build
-	$(LOCALBIN)/fractal worker --metrics --quiet
+	$(LOCALBIN)/fractal worker --quiet
 
 .PHONY: leader
 leader: build
